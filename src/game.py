@@ -1,15 +1,47 @@
 import pygame
 import math
+import os
+import sys
 
 from pygame.locals import *
+from os.path import isfile, join
 from time import sleep
+from enum import Enum
 
+#TODO look into the relative paths, from where the applicaiton is launched
 IMAGEDIR = "../images/"
+LEVELDIR = "../levels/"
+
+Direction = Enum('Direction', 'NEUTRAL UP DOWN LEFT RIGHT')
 
 class Position:
     def __init__(self,x,y):
         self.X = x
         self.Y = y
+
+class Loader:
+    def load_level(self, path):
+        leveldata = []
+        try:
+            onlyfiles = [f for f in os.listdir(path) if isfile(join(path, f))]
+            for file in onlyfiles:
+                try:
+                    file = open(path + file)
+                except Exception as e:
+                    print(e)
+
+                level = []
+                for line in file:
+                    line = list(map(int, line.rstrip().split(' ')))
+                    level.append(line)
+
+                leveldata.append(level)
+                file.close()
+
+        except Exception as e:
+            print(e)
+
+        return leveldata
 
 class GameObject:
     def __init__(self, path):
@@ -25,6 +57,7 @@ class GameObject:
         self.Size
 
 class Player(GameObject):
+    direction = Direction.NEUTRAL
     speed = 10
 
     def __init__(self, StartPos):
@@ -34,15 +67,19 @@ class Player(GameObject):
 #TODO Movement specified in separate class to be inherited from
     def move_right(self):
         self.Pos.X = self.Pos.X + self.speed
+        self.direction = Direction.RIGHT
 
     def move_left(self):
         self.Pos.X = self.Pos.X - self.speed
+        self.direction = Direction.LEFT
 
     def move_up(self):
         self.Pos.Y = self.Pos.Y - self.speed
+        self.direction = Direction.UP
 
     def move_down(self):
         self.Pos.Y = self.Pos.Y + self.speed
+        self.direction = Direction.DOWN
 
     def update(self):
         pass #Part with the jumpy jumpy thing
@@ -58,10 +95,14 @@ class App:
         self._display_surf = None
         self._image_surf = None
 
+        self.loader = Loader()
         self.window = Window(800,600)
         self.player = Player(Position(20,20))
 
     def on_init(self):
+        self.leveldata = self.loader.load_level(LEVELDIR + 'level1/')
+        print(self.leveldata)
+
         pygame.init()
         self._display_surf = pygame.display.set_mode((self.window.width,self.window.height),pygame.HWSURFACE)
 
