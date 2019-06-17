@@ -4,6 +4,8 @@ import math
 from pygame.locals import *
 from time import sleep
 
+IMAGEDIR = "../images/"
+
 class Position:
     def __init__(self,x,y):
         self.X = x
@@ -11,7 +13,10 @@ class Position:
 
 class GameObject:
     def __init__(self, path):
-        self.image = pygame.image.load(path).convert()
+        self.imagepath = path
+
+    def load_image(self):
+        self.image = pygame.image.load(self.imagepath).convert()
 
     def set_position(self, Pos):
         self.Pos = Pos
@@ -23,12 +28,20 @@ class Player(GameObject):
     speed = 10
 
     def __init__(self, StartPos):
+        GameObject.__init__(self, IMAGEDIR + "jumper.png")
         self.Pos = StartPos
 
+#TODO Movement specified in separate class to be inherited from
     def move_right(self):
         self.Pos.X = self.Pos.X + self.speed
 
     def move_left(self):
+        self.Pos.X = self.Pos.X - self.speed
+
+    def move_up(self):
+        self.Pos.Y = self.Pos.Y - self.speed
+
+    def move_down(self):
         self.Pos.Y = self.Pos.Y + self.speed
 
     def update(self):
@@ -54,6 +67,8 @@ class App:
 
         pygame.display.set_caption('SpringUndRenn')
         self._running = True
+        self.player.load_image()
+        self._image_surf = self.player.image
 
     def on_event(self, event):
         if event.type == QUIT:
@@ -64,7 +79,7 @@ class App:
 
     def on_render(self):
         self._display_surf.fill((0,0,0))
-        self._display_surf.blit(self._image_surf,(self.player.Pos.X,self.Player.Pos.Y))
+        self._display_surf.blit(self._image_surf,(self.player.Pos.X,self.player.Pos.Y))
         self.player.update()
         pygame.display.flip()
         sleep(0.03) #TODO implement Framerates
@@ -81,13 +96,20 @@ class App:
             keys = pygame.key.get_pressed()
 
             if (keys[K_d]):
-                self.player.moveRight()
+                self.player.move_right()
 
             if (keys[K_a]):
-                self.player.moveLeft()
+                self.player.move_left()
+
+            if (keys[K_w]):
+                self.player.move_up()
+
+            if (keys[K_s]):
+                self.player.move_down()
 
             if (keys[K_SPACE]):
-                self.player.jump()
+                #self.player.jump()
+                pass
 
             if (keys[K_ESCAPE]):
                 self._running = False
