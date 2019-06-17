@@ -110,17 +110,6 @@ class Player(GameObject,Movement):
         self.velocity = velocity
 
     def update(self, keys):
-        if (keys[K_d]):
-            self.move_right()
-        if (keys[K_a]):
-            self.move_left()
-        if (keys[K_w]):
-            self.move_up()
-        if (keys[K_s]):
-            self.move_down()
-        if (keys[K_SPACE]):
-            #self.player.jump()
-            pass
 
         # insert gravity here
 
@@ -140,7 +129,6 @@ class App:
 
         # list to keep track of alle the objects, which have to be updated
         self.active_gameobjects = pygame.sprite.Group()
-        self.player_gameobjects = pygame.sprite.Group()
         # don't have to be updated every iteration
         self.passive_gameobjects = pygame.sprite.Group()
 
@@ -154,8 +142,8 @@ class App:
         pygame.display.set_caption('SpringUndRenn')
 
         # create the player
-        player = Player(Position(20,20))
-        player.load_image() # remove this later
+        self.player = Player(Position(20,20))
+        self.player.load_image() # remove this later
         self.player_gameobjects.add(player)
 
         # create some dummy stones
@@ -171,14 +159,13 @@ class App:
 
     # additional action which occurs each loop
     def on_loop(self):
-        self.player_gameobjects.update(self.keys)
+        self.player.update()
         self.active_gameobjects.update()
 
     # rendering the frame
     def on_render(self):
         self._display_surf.fill((0,0,0))
 
-        self.player_gameobjects.draw(self._display_surf)
         self.active_gameobjects.draw(self._display_surf)
         self.passive_gameobjects.draw(self._display_surf)
 
@@ -197,6 +184,17 @@ class App:
             pygame.event.pump()
             self.keys = pygame.key.get_pressed()
 
+            if (keys[K_d]):
+                self.player.move_right()
+            if (keys[K_a]):
+                self.player.move_left()
+            if (keys[K_w]):
+                self.player.move_up()
+            if (keys[K_s]):
+                self.player.move_down()
+            if (keys[K_SPACE]):
+                #self.player.jump()
+                pass
             if (self.keys[K_ESCAPE]):
                 self._running = False
 
