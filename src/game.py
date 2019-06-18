@@ -11,13 +11,14 @@ from enum import Enum
 #TODO look into the relative paths, from where the applicaiton is launched
 IMAGEDIR = "../images/"
 LEVELDIR = "../levels/"
+SQUARESIZE = 20
 
 Direction = Enum('Direction', 'NEUTRAL UP DOWN LEFT RIGHT')
 
 class Position:
     def __init__(self,x,y):
-        self.X = x
-        self.Y = y
+        self.x = x
+        self.y = y
 
 class Loader:
     def load_level(self, path):
@@ -60,8 +61,8 @@ class GameObject(pygame.sprite.Sprite):
         self.image = pygame.image.load(self.imagepath).convert()
 
     def set_position(self, pos):
-        self.rect.x = pos.X
-        self.rect.y = pos.Y
+        self.rect.x = pos.x
+        self.rect.y = pos.y
 
     def set_size(self, size):
         self.Size = size
@@ -84,34 +85,47 @@ class Stone(Block):
 # movement interface
 class Movement:
     def move_right(self):
-        self.rect.x = self.rect.x + self.speed
+        self.change.x = self.rect.x + self.speed
         self.direction = Direction.RIGHT
 
     def move_left(self):
-        self.rect.x = self.rect.x - self.speed
+        self.change.x = self.rect.x - self.speed
         self.direction = Direction.LEFT
 
     def move_up(self):
-        self.rect.y = self.rect.y - self.speed
+        self.change.y = self.rect.y - self.speed
         self.direction = Direction.UP
 
     def move_down(self):
-        self.rect.y = self.rect.y + self.speed
+        self.change.y = self.rect.y + self.speed
         self.direction = Direction.DOWN
 
 # the player object
 class Player(GameObject,Movement):
     def __init__(self, startpos, direction=Direction.NEUTRAL, speed=10, velocity=5):
         GameObject.__init__(self, "jumper.png")
-        self.rect.x = startpos.X
-        self.rect.y = startpos.Y
+        self.rect = pygame.Rect((startpos.x, startpos.y),(20,20))
+        self.change = self.rect.copy()
         self.speed = speed
         self.direction = direction
         self.velocity = velocity
 
-    def update(self, keys):
+    def update(self):
+        if not self.LEFT and self.rect.x > self.change.x:
+            self.rect.x = self.change.x
+        if not self.RIGHT and self.rect.x < self.change.x:
+            self.rect.x = self.change.x
+        if not self.TOP and self.rect.y > self.change.y:
+            self.rect.y = self.change.y
+        if not self.BOTTOM and self.rect.y < self.change.y:
+            self.rect.y = self.change.y
 
-        # insert gravity here
+    def colission(self, left, right, top, bottom):
+        self.LEFT = left
+        self.RIGHT = right
+        self.TOP = top
+        self.BOTTOM = bottom
+
 
 class Window:
     def __init__(self, width, height):
@@ -132,6 +146,23 @@ class App:
         # don't have to be updated every iteration
         self.passive_gameobjects = pygame.sprite.Group()
 
+    def build_static_level(self):
+        y_off = 0
+        for line in self.leveldata[1]:
+            x_off = 0
+            for obj in line:
+                block = None
+
+                if obj == 1:
+                    block = Stone(Position(x_off,y_off))
+
+                if block != None:
+                    block.load_image()
+                    self.passive_gameobjects.add(block)
+
+                x_off = x_off + SQUARESIZE
+            y_off = y_off + SQUARESIZE
+
     def on_init(self):
         #TODO remove: just to test the leveldata
         self.leveldata = self.loader.load_level(LEVELDIR + 'level1/')
@@ -141,15 +172,17 @@ class App:
         self._display_surf = pygame.display.set_mode((self.window.width,self.window.height),pygame.HWSURFACE)
         pygame.display.set_caption('SpringUndRenn')
 
+        self.build_static_level()
+
         # create the player
         self.player = Player(Position(20,20))
         self.player.load_image() # remove this later
-        self.player_gameobjects.add(player)
+        self.active_gameobjects.add(self.player)
 
         # create some dummy stones
-        stone = Stone(Position(200,200))
-        stone.load_image() # remove this later
-        self.passive_gameobjects.add(stone)
+        # stone = Stone(Position(200,200))
+        # stone.load_image() # remove this later
+        # self.passive_gameobjects.add(stone)
 
         self.clock = pygame.time.Clock()
 
@@ -159,7 +192,27 @@ class App:
 
     # additional action which occurs each loop
     def on_loop(self):
-        self.player.update()
+        # colission detection
+        hitbox = pygame.Rect((self.player.rect.x - 2, self.player.rect.y - 2), (24,24))
+
+        self.player.colission(False, False, False, False)
+        for sprite in self.passive_gameobjects:
+            if hitbox.colliderect(sprite.rect):
+                print(sprite.rect)
+
+                # would be better to only check on move
+                # TODO check if Block is solid
+                if sprite.rect.collidepoint(hitbox.midleft):
+                    self.player.LEFT = True
+                if sprite.rect.collidepoint(hitbox.midright):
+                    self.player.RIGHT = True
+                if sprite.rect.collidepoint(hitbox.midtop):
+                    self.player.TOP = True
+                if sprite.rect.collidepoint(hitbox.midbottom):
+                    self.player.BOTTOM = True
+
+
+        # update all active objects
         self.active_gameobjects.update()
 
     # rendering the frame
@@ -182,7 +235,7 @@ class App:
 
         while(self._running):
             pygame.event.pump()
-            self.keys = pygame.key.get_pressed()
+            keys = pygame.key.get_pressed()
 
             if (keys[K_d]):
                 self.player.move_right()
@@ -195,7 +248,7 @@ class App:
             if (keys[K_SPACE]):
                 #self.player.jump()
                 pass
-            if (self.keys[K_ESCAPE]):
+            if (keys[K_ESCAPE]):
                 self._running = False
 
             self.on_loop()
