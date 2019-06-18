@@ -120,12 +120,11 @@ class Player(GameObject,Movement):
         if not self.BOTTOM and self.rect.y < self.change.y:
             self.rect.y = self.change.y
 
-    def colission(self, left, right, top, bottom):
+    def collision(self, left, right, top, bottom):
         self.LEFT = left
         self.RIGHT = right
         self.TOP = top
         self.BOTTOM = bottom
-
 
 class Window:
     def __init__(self, width, height):
@@ -179,11 +178,6 @@ class App:
         self.player.load_image() # remove this later
         self.active_gameobjects.add(self.player)
 
-        # create some dummy stones
-        # stone = Stone(Position(200,200))
-        # stone.load_image() # remove this later
-        # self.passive_gameobjects.add(stone)
-
         self.clock = pygame.time.Clock()
 
     def on_event(self, event):
@@ -193,24 +187,33 @@ class App:
     # additional action which occurs each loop
     def on_loop(self):
         # colission detection
-        hitbox = pygame.Rect((self.player.rect.x - 2, self.player.rect.y - 2), (24,24))
+        hitbox = pygame.Rect((self.player.change.x, self.player.change.y), (20,20))
 
-        self.player.colission(False, False, False, False)
+        self.player.collision(0,0,0,0)
+        collision = [0,0]
         for sprite in self.passive_gameobjects:
             if hitbox.colliderect(sprite.rect):
-                print(sprite.rect)
+                spritebox = sprite.rect
 
-                # would be better to only check on move
-                # TODO check if Block is solid
-                if sprite.rect.collidepoint(hitbox.midleft):
-                    self.player.LEFT = True
-                if sprite.rect.collidepoint(hitbox.midright):
-                    self.player.RIGHT = True
-                if sprite.rect.collidepoint(hitbox.midtop):
-                    self.player.TOP = True
-                if sprite.rect.collidepoint(hitbox.midbottom):
-                    self.player.BOTTOM = True
+                intersection = spritebox.clip(hitbox)
 
+                if (spritebox.left == intersection.left):
+                    collision[0] = collision[0]-1
+                if (spritebox.right == intersection.right):
+                    collision[0] = collision[0]+1
+                if (spritebox.bottom == intersection.bottom):
+                    collision[1] = collision[1]-1
+                if (spritebox.top == intersection.top):
+                    collision[1] = collision[1]+1
+
+        if collision[0] > 0:
+            self.player.LEFT = True
+        if collision[0] < 0:
+            self.player.RIGHT = True
+        if collision[1] > 0:
+            self.player.BOTTOM = True
+        if collision[1] < 0:
+            self.player.TOP = True
 
         # update all active objects
         self.active_gameobjects.update()
