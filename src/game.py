@@ -101,13 +101,17 @@ class Movement:
         self.direction = Direction.DOWN
 
     def jump(self):
-        self._jumping = True
+        if not self._jumping:
+            self._jumping = True
+            self.delta_time = 0
 
     def update_position(self):
-        force = 0
+        self.delta_time = self.delta_time + 1
+        s = self.gravity / 2 * self.delta_time**2
+        v = 0
         if self._jumping:
-           force = self.velocity
-        self.change.y = self.change.y - force + self.gravity
+           v = self.velocity
+        self.change.y = self.change.y - v + self.gravity
 
 # the player object
 class Player(GameObject,Movement):
@@ -121,6 +125,7 @@ class Player(GameObject,Movement):
         self.gravity = gravity
 
         self._jumping = False
+        self.delta_time = 0
 
     def update(self):
         print (self.x_collision, self.y_collision, self.xy_collision)
