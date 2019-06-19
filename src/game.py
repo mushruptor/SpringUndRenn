@@ -100,31 +100,47 @@ class Movement:
         self.change.y = self.rect.y + self.speed
         self.direction = Direction.DOWN
 
+    def jump(self):
+        self._jumping = True
+
+    def update_position(self):
+        force = 0
+        if self._jumping:
+           force = self.velocity
+        self.change.y = self.change.y - force + self.gravity
+
 # the player object
 class Player(GameObject,Movement):
-    def __init__(self, startpos, direction=Direction.NEUTRAL, speed=10, velocity=5):
+    def __init__(self, startpos, direction=Direction.NEUTRAL, speed=10, velocity=5, gravity=10):
         GameObject.__init__(self, "jumper.png")
         self.rect = pygame.Rect((startpos.x, startpos.y),(20,20))
         self.change = self.rect.copy()
         self.speed = speed
         self.direction = direction
         self.velocity = velocity
+        self.gravity = gravity
+
+        self._jumping = False
 
     def update(self):
-        if not self.LEFT and self.rect.x > self.change.x:
-            self.rect.x = self.change.x
-        if not self.RIGHT and self.rect.x < self.change.x:
-            self.rect.x = self.change.x
-        if not self.TOP and self.rect.y > self.change.y:
-            self.rect.y = self.change.y
-        if not self.BOTTOM and self.rect.y < self.change.y:
-            self.rect.y = self.change.y
+        print (self.x_collision, self.y_collision, self.xy_collision)
+        if (self.xy_collision and not self.x_collision and not self.y_collision):
+            self.change.x = self.rect.x
+            self.change.y = self.rect.y
+        if self.x_collision:
+            self.change.x = self.rect.x
+        if self.y_collision:
+            self.change.y = self.rect.y
+            self._jumping = False
 
-    def collision(self, left, right, top, bottom):
-        self.LEFT = left
-        self.RIGHT = right
-        self.TOP = top
-        self.BOTTOM = bottom
+        self.rect.x = self.change.x
+        self.rect.y = self.change.y
+
+
+    def collision(self, x, y, xy):
+        self.x_collision = x
+        self.y_collision = y
+        self.xy_collision = xy
 
 class Window:
     def __init__(self, width, height):
@@ -134,11 +150,10 @@ class Window:
 class App:
     def __init__(self):
         self._running = True
-        self._display_surf = None
-        self._image_surf = None
+        self._display = None
 
         self.loader = Loader()
-        self.window = Window(800,600)
+        self.window = Window(1000,1000)
 
         # list to keep track of alle the objects, which have to be updated
         self.active_gameobjects = pygame.sprite.Group()
@@ -165,10 +180,9 @@ class App:
     def on_init(self):
         #TODO remove: just to test the leveldata
         self.leveldata = self.loader.load_level(LEVELDIR + 'level1/')
-        print(self.leveldata)
 
         pygame.init()
-        self._display_surf = pygame.display.set_mode((self.window.width,self.window.height),pygame.HWSURFACE)
+        self._display = pygame.display.set_mode((self.window.width,self.window.height),pygame.HWSURFACE)
         pygame.display.set_caption('SpringUndRenn')
 
         self.build_static_level()
@@ -186,44 +200,34 @@ class App:
 
     # additional action which occurs each loop
     def on_loop(self):
+        #gravity
+        self.player.update_position()
+
         # colission detection
-        hitbox = pygame.Rect((self.player.change.x, self.player.change.y), (20,20))
+        x_hitbox = self.player.change.copy()
+        x_hitbox.y = self.player.rect.y
+        y_hitbox = self.player.change.copy()
+        y_hitbox.x = self.player.rect.x
+        xy_hitbox = self.player.change.copy()
 
-        self.player.collision(0,0,0,0)
-        collision = [0,0]
+        self.player.collision(False, False, False)
         for sprite in self.passive_gameobjects:
-            if hitbox.colliderect(sprite.rect):
-                spritebox = sprite.rect
-
-                intersection = spritebox.clip(hitbox)
-
-                if (spritebox.left == intersection.left):
-                    collision[0] = collision[0]-1
-                if (spritebox.right == intersection.right):
-                    collision[0] = collision[0]+1
-                if (spritebox.bottom == intersection.bottom):
-                    collision[1] = collision[1]-1
-                if (spritebox.top == intersection.top):
-                    collision[1] = collision[1]+1
-
-        if collision[0] > 0:
-            self.player.LEFT = True
-        if collision[0] < 0:
-            self.player.RIGHT = True
-        if collision[1] > 0:
-            self.player.BOTTOM = True
-        if collision[1] < 0:
-            self.player.TOP = True
+            if x_hitbox.colliderect(sprite.rect):
+                self.player.x_collision = True
+            if y_hitbox.colliderect(sprite.rect):
+                self.player.y_collision = True
+            if xy_hitbox.colliderect(sprite.rect):
+                self.player.xy_collision = True
 
         # update all active objects
         self.active_gameobjects.update()
 
     # rendering the frame
     def on_render(self):
-        self._display_surf.fill((0,0,0))
+        self._display.fill((0,0,0))
 
-        self.active_gameobjects.draw(self._display_surf)
-        self.passive_gameobjects.draw(self._display_surf)
+        self.active_gameobjects.draw(self._display)
+        self.passive_gameobjects.draw(self._display)
 
         pygame.display.flip()
         self.clock.tick(30)
@@ -249,8 +253,7 @@ class App:
             if (keys[K_s]):
                 self.player.move_down()
             if (keys[K_SPACE]):
-                #self.player.jump()
-                pass
+                self.player.jump()
             if (keys[K_ESCAPE]):
                 self._running = False
 
