@@ -101,17 +101,23 @@ class Movement:
         self.direction = Direction.DOWN
 
     def jump(self):
-        self._jumping = True
+        if(not self._inAir):
+            #setting velocity and _jumping for jumping movement if not already in air
+            self.velocity = 50
+            self._jumping = True
+        self.direction = Direction.UP
 
     def update_position(self):
-        force = 0
-        if self._jumping:
-           force = self.velocity
-        self.change.y = self.change.y - force + self.gravity
+        if self._inAir:
+           #decrement jumping velocity
+           self.velocity *= 0.85
+        #calculate y movement by subtracting jumping velocity from gravity
+        #the max jumping hight will be (self.gravity - self.velocity)
+        self.change.y = self.change.y + (self.gravity - self.velocity)
 
 # the player object
 class Player(GameObject,Movement):
-    def __init__(self, startpos, direction=Direction.NEUTRAL, speed=10, velocity=5, gravity=10):
+    def __init__(self, startpos, direction=Direction.NEUTRAL, speed=10, velocity=0, gravity=10):
         GameObject.__init__(self, "jumper.png")
         self.rect = pygame.Rect((startpos.x, startpos.y),(20,20))
         self.change = self.rect.copy()
@@ -121,9 +127,11 @@ class Player(GameObject,Movement):
         self.gravity = gravity
 
         self._jumping = False
+        #prevent jumoing when in air
+        self._inAir = True
 
     def update(self):
-        print (self.x_collision, self.y_collision, self.xy_collision)
+        print ("COL_X=",self.x_collision, " COL_Y=", self.y_collision, " COL_XY=",self.xy_collision, "JUMPING=", self._jumping, "CollBot=", self.bot_collision, "InAir=", self._inAir)
         if (self.xy_collision and not self.x_collision and not self.y_collision):
             self.change.x = self.rect.x
             self.change.y = self.rect.y
@@ -133,14 +141,20 @@ class Player(GameObject,Movement):
             self.change.y = self.rect.y
             self._jumping = False
 
+        #the x collision is  a workaround because the bot collision will detect
+        #a collision if running against a wall
+        self._inAir = not self.bot_collision or self.x_collision
+
         self.rect.x = self.change.x
         self.rect.y = self.change.y
 
 
-    def collision(self, x, y, xy):
+    def collision(self, x, y, xy, bot):
         self.x_collision = x
         self.y_collision = y
         self.xy_collision = xy
+        #detect if the player is standing on a solid block
+        self.bot_collision = bot
 
 class Window:
     def __init__(self, width, height):
@@ -209,8 +223,11 @@ class App:
         y_hitbox = self.player.change.copy()
         y_hitbox.x = self.player.rect.x
         xy_hitbox = self.player.change.copy()
+        #detect if there is a box under the current position
+        bot_hitbox = self.player.change.copy()
+        bot_hitbox.y = self.player.rect.y + 10
 
-        self.player.collision(False, False, False)
+        self.player.collision(False, False, False, False)
         for sprite in self.passive_gameobjects:
             if x_hitbox.colliderect(sprite.rect):
                 self.player.x_collision = True
@@ -218,6 +235,8 @@ class App:
                 self.player.y_collision = True
             if xy_hitbox.colliderect(sprite.rect):
                 self.player.xy_collision = True
+            if bot_hitbox.colliderect(sprite.rect):
+                self.player.bot_collision = True
 
         # update all active objects
         self.active_gameobjects.update()
