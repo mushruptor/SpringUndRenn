@@ -102,40 +102,57 @@ class Movement:
         self.direction = Direction.DOWN
 
     def jump(self):
-        if not self._jumping:
+
+   # MERGE HERE
+   #      if not self._jumping:
+   #          self._jumping = True
+   #          self.time = 0
+   #          self.velocity = 105
+   #          self.delta_acceleration = - self.velocity
+
+   #  def update_position(self):
+   #      dt = 1
+   #      self.time = self.time + dt
+   #      a_old = self.delta_acceleration
+   #      g = self.gravity
+
+   #      m = 1
+   #      A = 1
+   #      rho = 0.1
+   #      c = 1
+
+   #      dv = a_old * dt
+   #      ds = 1/2 * a_old * dt
+   #      a_new = (m * g) - (c * A * 1/2 * rho * dv)
+
+   #      self.delta_acceleration = a_new
+
+   #      print("a_old: ", a_old)
+   #      print("a_new: ", a_new)
+   #      print("dv: ", dv)
+   #      print("ds: ", ds)
+   #      print(" - - - ")
+
+   #      self.change.y = self.change.y + ds
+   # UNTIL HERE
+
+        if(not self._inAir):
+            #setting velocity and _jumping for jumping movement if not already in air
+            self.velocity = 50
             self._jumping = True
-            self.time = 0
-            self.velocity = 105
-            self.delta_acceleration = - self.velocity
+        self.direction = Direction.UP
 
     def update_position(self):
-        dt = 1
-        self.time = self.time + dt
-        a_old = self.delta_acceleration
-        g = self.gravity
-
-        m = 1
-        A = 1
-        rho = 0.1
-        c = 1
-
-        dv = a_old * dt
-        ds = 1/2 * a_old * dt
-        a_new = (m * g) - (c * A * 1/2 * rho * dv)
-
-        self.delta_acceleration = a_new
-
-        print("a_old: ", a_old)
-        print("a_new: ", a_new)
-        print("dv: ", dv)
-        print("ds: ", ds)
-        print(" - - - ")
-
-        self.change.y = self.change.y + ds
+        if self._inAir:
+           #decrement jumping velocity
+           self.velocity *= 0.85
+        #calculate y movement by subtracting jumping velocity from gravity
+        #the max jumping hight will be (self.gravity - self.velocity)
+        self.change.y = self.change.y + (self.gravity - self.velocity)
 
 # the player object
 class Player(GameObject,Movement):
-    def __init__(self, startpos, direction=Direction.NEUTRAL, speed=10, velocity=5, gravity=10):
+    def __init__(self, startpos, direction=Direction.NEUTRAL, speed=10, velocity=0, gravity=10):
         GameObject.__init__(self, "jumper.png")
         self.rect = pygame.Rect((startpos.x, startpos.y),(20,20))
         self.change = self.rect.copy()
@@ -145,11 +162,17 @@ class Player(GameObject,Movement):
         self.gravity = gravity
 
         self._jumping = False
-        self.time = 0
-        self.delta_acceleration = 0
+
+        # MERGE HERE
+        # self.time = 0
+        # self.delta_acceleration = 0
+        # UNTIL HERE
+
+        #prevent jumoing when in air
+        self._inAir = True
 
     def update(self):
-        print (self.x_collision, self.y_collision, self.xy_collision)
+        print ("COL_X=",self.x_collision, " COL_Y=", self.y_collision, " COL_XY=",self.xy_collision, "JUMPING=", self._jumping, "CollBot=", self.bot_collision, "InAir=", self._inAir)
         if (self.xy_collision and not self.x_collision and not self.y_collision):
             self.change.x = self.rect.x
             self.change.y = self.rect.y
@@ -159,14 +182,20 @@ class Player(GameObject,Movement):
             self.change.y = self.rect.y
             self._jumping = False
 
+        #the x collision is  a workaround because the bot collision will detect
+        #a collision if running against a wall
+        self._inAir = not self.bot_collision or self.x_collision
+
         self.rect.x = self.change.x
         self.rect.y = self.change.y
 
 
-    def collision(self, x, y, xy):
+    def collision(self, x, y, xy, bot):
         self.x_collision = x
         self.y_collision = y
         self.xy_collision = xy
+        #detect if the player is standing on a solid block
+        self.bot_collision = bot
 
 class Window:
     def __init__(self, width, height):
@@ -248,8 +277,11 @@ class App:
         y_hitbox.x = self.player.rect.x
 
         xy_hitbox = self.player.change.copy()
+        #detect if there is a box under the current position
+        bot_hitbox = self.player.change.copy()
+        bot_hitbox.y = self.player.rect.y + 10
 
-        self.player.collision(False, False, False)
+        self.player.collision(False, False, False, False)
         for sprite in self.passive_gameobjects:
             if x_hitbox.colliderect(sprite.rect):
                 self.player.x_collision = True
@@ -257,6 +289,8 @@ class App:
                 self.player.y_collision = True
             if xy_hitbox.colliderect(sprite.rect):
                 self.player.xy_collision = True
+            if bot_hitbox.colliderect(sprite.rect):
+                self.player.bot_collision = True
 
         # update all active objects
         self.active_gameobjects.update()
