@@ -12,6 +12,7 @@ from enum import Enum
 IMAGEDIR = "../images/"
 LEVELDIR = "../levels/"
 SQUARESIZE = 20
+MAXVELOCITY = 40
 
 Direction = Enum('Direction', 'NEUTRAL UP DOWN LEFT RIGHT')
 
@@ -103,15 +104,34 @@ class Movement:
     def jump(self):
         if not self._jumping:
             self._jumping = True
-            self.delta_time = 0
+            self.time = 0
+            self.velocity = 105
+            self.delta_acceleration = - self.velocity
 
     def update_position(self):
-        self.delta_time = self.delta_time + 1
-        s = self.gravity / 2 * self.delta_time**2
-        v = 0
-        if self._jumping:
-           v = self.velocity
-        self.change.y = self.change.y - v + self.gravity
+        dt = 1
+        self.time = self.time + dt
+        a_old = self.delta_acceleration
+        g = self.gravity
+
+        m = 1
+        A = 1
+        rho = 0.1
+        c = 1
+
+        dv = a_old * dt
+        ds = 1/2 * a_old * dt
+        a_new = (m * g) - (c * A * 1/2 * rho * dv)
+
+        self.delta_acceleration = a_new
+
+        print("a_old: ", a_old)
+        print("a_new: ", a_new)
+        print("dv: ", dv)
+        print("ds: ", ds)
+        print(" - - - ")
+
+        self.change.y = self.change.y + ds
 
 # the player object
 class Player(GameObject,Movement):
@@ -125,7 +145,8 @@ class Player(GameObject,Movement):
         self.gravity = gravity
 
         self._jumping = False
-        self.delta_time = 0
+        self.time = 0
+        self.delta_acceleration = 0
 
     def update(self):
         print (self.x_collision, self.y_collision, self.xy_collision)
@@ -193,7 +214,7 @@ class App:
         self.build_static_level()
 
         # create the player
-        self.player = Player(Position(20,20))
+        self.player = Player(Position(60,20))
         self.player.load_image() # remove this later
         self.active_gameobjects.add(self.player)
 
@@ -209,10 +230,23 @@ class App:
         self.player.update_position()
 
         # colission detection
+        # make hitboxes as large as the whole area covered by a move
         x_hitbox = self.player.change.copy()
+        if self.player.rect.x < self.player.change.x:
+            x_hitbox.x = self.player.rect.right
+        else:
+            x_hitbox.x = self.player.change.x
+        x_hitbox.width = abs(self.player.change.x - self.player.rect.x)
         x_hitbox.y = self.player.rect.y
+
         y_hitbox = self.player.change.copy()
+        if self.player.rect.y < self.player.change.y:
+            y_hitbox.y = self.player.rect.bottom
+        else:
+            y_hitbox.y = self.player.change.y
+        y_hitbox.height = abs(self.player.change.y - self.player.rect.y)
         y_hitbox.x = self.player.rect.x
+
         xy_hitbox = self.player.change.copy()
 
         self.player.collision(False, False, False)
@@ -253,10 +287,10 @@ class App:
                 self.player.move_right()
             if (keys[K_a]):
                 self.player.move_left()
-            if (keys[K_w]):
-                self.player.move_up()
-            if (keys[K_s]):
-                self.player.move_down()
+            # if (keys[K_w]):
+            #     self.player.move_up()
+            # if (keys[K_s]):
+            #     self.player.move_down()
             if (keys[K_SPACE]):
                 self.player.jump()
             if (keys[K_ESCAPE]):
